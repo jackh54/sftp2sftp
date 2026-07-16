@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"os"
 	"strings"
@@ -29,59 +28,6 @@ type Config struct {
 	ChunkSize    int
 	Verify       verify.Mode
 	StatePath    string
-}
-
-func ParseArgs(args []string) (Config, error) {
-	fs := flag.NewFlagSet("sftp2sftp", flag.ContinueOnError)
-	fs.SetOutput(os.Stderr)
-	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: sftp2sftp --source user@host:port/path --dest user@host:port/path [options]\n\n")
-		fmt.Fprintf(os.Stderr, "Direct SFTP-to-SFTP transfer without writing files to local disk.\n\n")
-		fs.PrintDefaults()
-	}
-
-	var cfg Config
-	var excludeRaw string
-	var verifyRaw string
-
-	fs.StringVar(&cfg.Source, "source", "", "Source SFTP endpoint: user@host:port/path")
-	fs.StringVar(&cfg.Dest, "dest", "", "Destination SFTP endpoint: user@host:port/path")
-	fs.StringVar(&cfg.SourceKey, "source-key", "", "SSH private key for source")
-	fs.StringVar(&cfg.DestKey, "dest-key", "", "SSH private key for destination")
-	fs.StringVar(&excludeRaw, "exclude", "", "Comma-separated exclude patterns")
-	fs.IntVar(&cfg.Concurrency, "concurrency", 4, "Parallel file transfers")
-	fs.BoolVar(&cfg.Resume, "resume", false, "Resume from .sftp2sftp-state.json")
-	fs.BoolVar(&cfg.NoMCDefaults, "no-mc-defaults", false, "Disable default Minecraft server excludes")
-	fs.IntVar(&cfg.ChunkSize, "chunk-size", 64*1024, "Stream buffer size in bytes")
-	fs.StringVar(&verifyRaw, "verify", "", "Post-transfer verification: size or md5")
-	fs.StringVar(&cfg.StatePath, "state-file", state.DefaultFile, "Resume state file path")
-
-	if err := fs.Parse(args); err != nil {
-		return Config{}, err
-	}
-
-	if cfg.Source == "" || cfg.Dest == "" {
-		return Config{}, fmt.Errorf("--source and --dest are required")
-	}
-
-	if excludeRaw != "" {
-		for _, part := range strings.Split(excludeRaw, ",") {
-			part = strings.TrimSpace(part)
-			if part != "" {
-				cfg.Exclude = append(cfg.Exclude, part)
-			}
-		}
-	}
-
-	if verifyRaw != "" {
-		mode, err := verify.ParseMode(verifyRaw)
-		if err != nil {
-			return Config{}, err
-		}
-		cfg.Verify = mode
-	}
-
-	return cfg, nil
 }
 
 func Run(ctx context.Context, cfg Config) error {

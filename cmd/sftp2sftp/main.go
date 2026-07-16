@@ -2,22 +2,18 @@ package main
 
 import (
 	"context"
-	"errors"
-	"flag"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/jackh54/sftp2sftp/internal/cli"
+	"github.com/jackh54/sftp2sftp/internal/ui"
 )
 
 func main() {
-	cfg, err := cli.ParseArgs(os.Args[1:])
+	cfg, err := ui.Prompt()
 	if err != nil {
-		if errors.Is(err, flag.ErrHelp) {
-			os.Exit(0)
-		}
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
