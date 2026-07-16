@@ -17,6 +17,42 @@ import (
 	"github.com/pkg/sftp"
 )
 
+// BuildSelected walks only the given relative directory paths under root.
+func BuildSelected(ctx context.Context, client *sftpclient.Client, root string, relDirs []string, matcher *exclude.Matcher) (manifest.Manifest, error) {
+	root = strings.TrimRight(root, "/")
+	if root == "" {
+		root = "/"
+	}
+
+	m := manifest.Manifest{SourceRoot: root}
+	scan := progress.NewScanTracker()
+	reporter := progress.NewScanReporter(scan, 500*time.Millisecond)
+	reporter.Start()
+	defer reporter.Stop()
+
+	err := client.WithSFTP(func(s *sftp.Client) error {
+		for _, rel := range relDirs {
+			rel = strings.Trim(rel, "/")
+			dir := root
+			if rel != "" {
+				dir = root + "/" + rel
+			}
+			if err := walk(ctx, s, root, dir, matcher, &m, scan); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return manifest.Manifest{}, err
+	}
+
+	for _, f := range m.Files {
+		m.TotalBytes += f.Size
+	}
+	return m, nil
+}
+
 // Build walks the source tree and returns a manifest of files to transfer.
 // workers controls parallel directory scans; 1 is fully sequential.
 func Build(ctx context.Context, client *sftpclient.Client, root string, matcher *exclude.Matcher, workers int) (manifest.Manifest, error) {

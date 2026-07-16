@@ -76,7 +76,7 @@ chmod +x sftp2sftp-linux-amd64   # once, after download
 2. **Authentication** — password by default; SSH private keys are an optional choice
 3. **Transfer** — parallelism, resume, verification mode
 4. **Excludes** — Minecraft defaults and custom patterns
-5. **Confirm** — review summary, then transfer starts
+5. **Confirm** — review summary, connect, then browse the source to select files/folders
 
 
 ### Endpoint format
@@ -114,8 +114,8 @@ When enabled in the wizard, these are excluded:
 ## How it works
 
 1. Opens dual SSH/SFTP sessions (source + dest) with keepalive packets
-2. Walks the source tree in parallel (same worker count as transfers) and builds a manifest (path, size, mode) for real progress %
-3. Transfers files through an in-memory pipe (`io.CopyBuffer`) — never touches local disk
+2. Browse the source tree interactively and select files/folders to copy (live SFTP listing — no full-tree scan upfront)
+3. Expands selected folders, then transfers files through an in-memory pipe (`io.CopyBuffer`) — never touches local disk
 4. Creates destination parent directories as needed (`mkdir -p` equivalent)
 5. Runs a worker pool for parallel small-file throughput
 6. Retries each file up to 3× with exponential backoff
