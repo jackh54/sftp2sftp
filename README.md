@@ -1,5 +1,7 @@
 # sftp2sftp
 
+[![CI](https://github.com/jackh54/sftp2sftp/actions/workflows/ci.yml/badge.svg)](https://github.com/jackh54/sftp2sftp/actions/workflows/ci.yml)
+
 Direct **SFTP-to-SFTP** file transfer CLI. Streams each file from source to destination over SSH — nothing is written to local disk except an optional resume state file.
 
 Built with Go for a single static binary that runs on Linux, macOS, and Windows.
