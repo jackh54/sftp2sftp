@@ -8,6 +8,7 @@ import (
 	"github.com/jackh54/sftp2sftp/internal/auth"
 	"github.com/jackh54/sftp2sftp/internal/endpoint"
 	"github.com/jackh54/sftp2sftp/internal/exclude"
+	"github.com/jackh54/sftp2sftp/internal/progress"
 	"github.com/jackh54/sftp2sftp/internal/sftpclient"
 	"github.com/jackh54/sftp2sftp/internal/state"
 	"github.com/jackh54/sftp2sftp/internal/transfer"
@@ -68,14 +69,13 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	matcher := exclude.New(patterns...)
 
-	fmt.Fprintln(os.Stderr, "building manifest from source ...")
 	m, err := walker.Build(ctx, sourceClient, srcEP.Path, matcher)
 	if err != nil {
 		return err
 	}
 	m.DestRoot = dstEP.Path
 
-	fmt.Fprintf(os.Stderr, "found %d files (%s total)\n", len(m.Files), humanBytes(m.TotalBytes))
+	fmt.Fprintf(os.Stderr, "found %d files (%s total)\n", len(m.Files), progress.HumanBytes(m.TotalBytes))
 
 	st := &state.File{Source: cfg.Source, Dest: cfg.Dest, Done: map[string]state.Entry{}}
 	if cfg.Resume {
@@ -95,7 +95,7 @@ func Run(ctx context.Context, cfg Config) error {
 		before := len(m.Files)
 		m = st.Filter(m)
 		fmt.Fprintf(os.Stderr, "resume: skipping %d files, %d remaining (%s)\n",
-			before-len(m.Files), len(m.Files), humanBytes(m.TotalBytes))
+			before-len(m.Files), len(m.Files), progress.HumanBytes(m.TotalBytes))
 	}
 
 	manager := sftpclient.NewManager(sourceClient, destClient)
@@ -129,17 +129,4 @@ func resolveAuth(label, keyPath string) (auth.Method, error) {
 		return auth.Method{}, err
 	}
 	return auth.Method{Password: pw}, nil
-}
-
-func humanBytes(n int64) string {
-	const unit = 1024
-	if n < unit {
-		return fmt.Sprintf("%d B", n)
-	}
-	div, exp := int64(unit), 0
-	for v := n / unit; v >= unit; v /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.1f %cB", float64(n)/float64(div), "KMGTPE"[exp])
 }

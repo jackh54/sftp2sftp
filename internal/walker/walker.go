@@ -7,9 +7,11 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/jackh54/sftp2sftp/internal/exclude"
 	"github.com/jackh54/sftp2sftp/internal/manifest"
+	"github.com/jackh54/sftp2sftp/internal/progress"
 	"github.com/jackh54/sftp2sftp/internal/sftpclient"
 	"github.com/pkg/sftp"
 )
@@ -26,8 +28,13 @@ func Build(ctx context.Context, client *sftpclient.Client, root string, matcher 
 		Files:      nil,
 	}
 
+	scan := progress.NewScanTracker()
+	reporter := progress.NewScanReporter(scan, 500*time.Millisecond)
+	reporter.Start()
+	defer reporter.Stop()
+
 	err := client.WithSFTP(func(s *sftp.Client) error {
-		return walk(ctx, s, root, root, matcher, &m)
+		return walk(ctx, s, root, root, matcher, &m, scan)
 	})
 	if err != nil {
 		return manifest.Manifest{}, err
@@ -39,12 +46,14 @@ func Build(ctx context.Context, client *sftpclient.Client, root string, matcher 
 	return m, nil
 }
 
-func walk(ctx context.Context, client *sftp.Client, root, current string, matcher *exclude.Matcher, m *manifest.Manifest) error {
+func walk(ctx context.Context, client *sftp.Client, root, current string, matcher *exclude.Matcher, m *manifest.Manifest, scan *progress.ScanTracker) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	default:
 	}
+
+	scan.VisitDir(current)
 
 	entries, err := client.ReadDir(current)
 	if err != nil {
@@ -72,15 +81,17 @@ func walk(ctx context.Context, client *sftp.Client, root, current string, matche
 			// Skip symlinks; streaming copy cannot preserve link semantics safely.
 			continue
 		case mode.IsDir():
-			if err := walk(ctx, client, root, full, matcher, m); err != nil {
+			if err := walk(ctx, client, root, full, matcher, m, scan); err != nil {
 				return err
 			}
 		case mode.IsRegular():
+			size := entry.Size()
 			m.Files = append(m.Files, manifest.File{
 				RelPath: rel,
-				Size:    entry.Size(),
+				Size:    size,
 				Mode:    mode,
 			})
+			scan.AddFile(size)
 		default:
 			// Skip sockets, devices, etc.
 			continue
