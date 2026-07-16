@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/jackh54/sftp2sftp/internal/auth"
+	"github.com/jackh54/sftp2sftp/internal/browse"
 	"github.com/jackh54/sftp2sftp/internal/endpoint"
 	"github.com/jackh54/sftp2sftp/internal/exclude"
 	"github.com/jackh54/sftp2sftp/internal/progress"
@@ -13,7 +14,6 @@ import (
 	"github.com/jackh54/sftp2sftp/internal/state"
 	"github.com/jackh54/sftp2sftp/internal/transfer"
 	"github.com/jackh54/sftp2sftp/internal/verify"
-	"github.com/jackh54/sftp2sftp/internal/walker"
 )
 
 type Config struct {
@@ -69,13 +69,29 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	matcher := exclude.New(patterns...)
 
-	m, err := walker.Build(ctx, sourceClient, srcEP.Path, matcher, cfg.Concurrency)
+	fmt.Fprintln(os.Stderr, "browse source and select files to copy (c to confirm)...")
+	selections, err := browse.Run(ctx, sourceClient, srcEP.Path, matcher)
 	if err != nil {
 		return err
 	}
-	m.DestRoot = dstEP.Path
 
-	fmt.Fprintf(os.Stderr, "found %d files (%s total)\n", len(m.Files), progress.HumanBytes(m.TotalBytes))
+	hasDirs := false
+	for _, sel := range selections {
+		if sel.IsDir {
+			hasDirs = true
+			break
+		}
+	}
+	if hasDirs {
+		fmt.Fprintln(os.Stderr, "expanding selected folders...")
+	}
+
+	m, err := browse.ToManifest(ctx, sourceClient, srcEP.Path, dstEP.Path, selections, matcher)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintf(os.Stderr, "selected %d files (%s total)\n", len(m.Files), progress.HumanBytes(m.TotalBytes))
 
 	st := &state.File{Source: cfg.Source, Dest: cfg.Dest, Done: map[string]state.Entry{}}
 	if cfg.Resume {

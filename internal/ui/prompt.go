@@ -109,7 +109,7 @@ func Prompt() (cli.Config, error) {
 				Description("Files stream source → destination in memory. Nothing is written to local disk."),
 			huh.NewSelect[string]().
 				Title("Parallel workers").
-				Description("Used for manifest scan and file transfer. Higher = faster on large servers, but more load on SFTP.").
+				Description("Used when expanding folders and during file transfer. Higher = faster on large servers, but more load on SFTP.").
 				Options(
 					huh.NewOption("1 (slow, gentle on SSH)", "1"),
 					huh.NewOption("2", "2"),
@@ -236,6 +236,7 @@ func summarize(source, dest, authMode, concurrency string, resume bool, verify s
 	if strings.TrimSpace(excludes) != "" {
 		fmt.Fprintf(&b, "  extra excludes: %s\n", excludes)
 	}
+	b.WriteString("\nAfter connecting, browse the source and select files/folders to copy (c to confirm).")
 	b.WriteString("\nPress enter on the last step to start.")
 	return b.String()
 }
