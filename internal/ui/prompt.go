@@ -44,7 +44,7 @@ func Prompt() (cli.Config, error) {
 		sourceKey    string
 		destKey      string
 		excludeRaw   string
-		concurrency  string = "4"
+		concurrency  string = "8"
 		resume       bool
 		useMCDefault bool   = true
 		verifyChoice string = "none"
@@ -109,13 +109,14 @@ func Prompt() (cli.Config, error) {
 				Description("Files stream source → destination in memory. Nothing is written to local disk."),
 			huh.NewSelect[string]().
 				Title("Parallel workers").
-				Description("Used when expanding folders and during file transfer. Higher = faster on large servers, but more load on SFTP.").
+				Description("Opens one SSH session per worker on each host. More workers = faster, but more load on SFTP. Try 16–32 for large transfers.").
 				Options(
 					huh.NewOption("1 (slow, gentle on SSH)", "1"),
 					huh.NewOption("2", "2"),
-					huh.NewOption("4 (recommended)", "4"),
-					huh.NewOption("8 (large servers)", "8"),
-					huh.NewOption("16 (aggressive)", "16"),
+					huh.NewOption("4", "4"),
+					huh.NewOption("8 (recommended)", "8"),
+					huh.NewOption("16 (large servers)", "16"),
+					huh.NewOption("32 (maximum throughput)", "32"),
 				).
 				Value(&concurrency),
 			huh.NewConfirm().
@@ -170,7 +171,6 @@ func Prompt() (cli.Config, error) {
 		Concurrency:  parallel,
 		Resume:       resume,
 		NoMCDefaults: !useMCDefault,
-		ChunkSize:    64 * 1024,
 		StatePath:    state.DefaultFile,
 	}
 	if authMode == "ssh" {
