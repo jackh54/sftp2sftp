@@ -1,3 +1,3 @@
 bin/
-.mctransfer-state.json
+.sftp2sftp-state.json
 *.exe

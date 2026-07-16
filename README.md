@@ -1,4 +1,4 @@
-# mctransfer
+# sftp2sftp
 
 Direct **SFTP-to-SFTP** file transfer CLI. Streams each file from source to destination over SSH — nothing is written to local disk except an optional resume state file.
 
@@ -7,7 +7,7 @@ Built with Go for a single static binary that runs on Linux, macOS, and Windows.
 ## Install
 
 ```bash
-go build -o mctransfer ./cmd/mctransfer/
+go build -o sftp2sftp ./cmd/sftp2sftp/
 ```
 
 Or cross-compile:
@@ -19,7 +19,7 @@ make build-all
 ## Usage
 
 ```bash
-mctransfer \
+sftp2sftp \
   --source user@host1:2022/path/to/server \
   --dest   user@host2:2022/path/to/server \
   --exclude "cache/,logs/" \
@@ -46,7 +46,7 @@ mctransfer \
 | `--concurrency` | `4` | Parallel file transfers |
 | `--chunk-size` | `65536` | Stream buffer size (bytes) |
 | `--resume` | `false` | Skip completed files via state file |
-| `--state-file` | `.mctransfer-state.json` | Resume state path |
+| `--state-file` | `.sftp2sftp-state.json` | Resume state path |
 | `--verify` | | `size` or `md5` post-transfer verification |
 | `--no-mc-defaults` | `false` | Disable Minecraft server excludes |
 
@@ -71,16 +71,16 @@ By default these are excluded (use `--no-mc-defaults` to disable):
 
 ### Resume
 
-With `--resume`, completed files are tracked in `.mctransfer-state.json` by relative path + size. On restart, fully transferred files are skipped; partial destination files are removed and re-transferred.
+With `--resume`, completed files are tracked in `.sftp2sftp-state.json` by relative path + size. On restart, fully transferred files are skipped; partial destination files are removed and re-transferred.
 
 ## Examples
 
 ```bash
 # Basic migration
-mctransfer --source mc@old-vps:22/home/mc/server --dest mc@new-vps:22/home/mc/server
+sftp2sftp --source mc@old-vps:22/home/mc/server --dest mc@new-vps:22/home/mc/server
 
 # Custom keys, 8 parallel streams, verify sizes
-mctransfer \
+sftp2sftp \
   --source mc@10.0.0.1:2222/opt/minecraft \
   --dest mc@10.0.0.2:2222/opt/minecraft \
   --source-key ~/.ssh/old_vps \
@@ -89,7 +89,7 @@ mctransfer \
   --verify size
 
 # Resume interrupted transfer
-mctransfer --source ... --dest ... --resume
+sftp2sftp --source ... --dest ... --resume
 ```
 
 ## License

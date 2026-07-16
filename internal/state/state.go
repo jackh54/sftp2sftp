@@ -9,7 +9,7 @@ import (
 	"github.com/jackh54/sftp2sftp/internal/manifest"
 )
 
-const DefaultFile = ".mctransfer-state.json"
+const DefaultFile = ".sftp2sftp-state.json"
 
 type Entry struct {
 	Size        int64     `json:"size"`

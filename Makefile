@@ -1,5 +1,5 @@
-BINARY ?= mctransfer
-CMD    := ./cmd/mctransfer
+BINARY ?= sftp2sftp
+CMD    := ./cmd/sftp2sftp
 
 .PHONY: build build-all test clean
 
