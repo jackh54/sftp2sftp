@@ -8,31 +8,69 @@ Built with Go for a single static binary that runs on Linux, macOS, and Windows.
 
 ## Install
 
+### Download (recommended)
+
+Grab the binary for your OS from the [latest GitHub release](https://github.com/jackh54/sftp2sftp/releases/latest):
+
+| OS | File |
+|---|---|
+| Windows | `sftp2sftp-windows-amd64.exe` |
+| Linux | `sftp2sftp-linux-amd64` or `sftp2sftp-linux-arm64` |
+| macOS | `sftp2sftp-darwin-amd64` or `sftp2sftp-darwin-arm64` (Apple Silicon) |
+
+### Build from source
+
 ```bash
 go build -o sftp2sftp ./cmd/sftp2sftp/
 ```
 
-Or cross-compile:
+Or cross-compile all platforms:
 
 ```bash
 make build-all
 ```
 
-CI builds all platform binaries on every push to `main`. Release binaries are attached automatically when you:
-
-- push any git tag (`git tag 1.0.0 && git push origin 1.0.0`), or
-- publish a release on GitHub, or
-- run the **Release** workflow manually (Actions → Release → Run workflow)
+Release binaries are built by CI when you push a tag, publish a GitHub release, or run the **Release** workflow manually.
 
 ## Usage
 
-Run the binary — it launches an interactive setup wizard:
+The binary is interactive — run it in a terminal and answer the prompts. No flags required.
 
-```bash
-sftp2sftp
+### Windows (PowerShell or Command Prompt)
+
+1. Download `sftp2sftp-windows-amd64.exe` from Releases.
+2. Put it somewhere easy to find (e.g. `Downloads` or a folder on your Desktop).
+3. Open **PowerShell** or **Command Prompt** in that folder:
+   - In File Explorer, click the address bar, type `powershell` or `cmd`, and press Enter  
+   - Or Shift+right-click the folder → **Open in Terminal** / **Open PowerShell window here**
+4. Run it:
+
+**PowerShell:**
+
+```powershell
+.\sftp2sftp-windows-amd64.exe
 ```
 
-You'll be prompted for:
+**Command Prompt (cmd.exe):**
+
+```bat
+sftp2sftp-windows-amd64.exe
+```
+
+You can rename the file to `sftp2sftp.exe` first if you want a shorter command (`.\sftp2sftp.exe` in PowerShell, `sftp2sftp.exe` in cmd).
+
+> Double-clicking the `.exe` also works, but a console window may close on errors — running from PowerShell/cmd is clearer.
+
+### Linux / macOS
+
+```bash
+chmod +x sftp2sftp-linux-amd64   # once, after download
+./sftp2sftp-linux-amd64
+```
+
+(Use the darwin binary name on macOS.)
+
+### What you'll be asked
 
 1. **Connection** — source and destination as Pterodactyl-style SFTP URLs
 2. **Authentication** — password by default; SSH private keys are an optional choice
@@ -40,7 +78,6 @@ You'll be prompted for:
 4. **Excludes** — Minecraft defaults and custom patterns
 5. **Confirm** — review summary, then transfer starts
 
-No flags required.
 
 ### Endpoint format
 
