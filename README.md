@@ -18,6 +18,12 @@ Or cross-compile:
 make build-all
 ```
 
+CI builds all platform binaries on every push to `main`. Release binaries are attached automatically when you:
+
+- push any git tag (`git tag 1.0.0 && git push origin 1.0.0`), or
+- publish a release on GitHub, or
+- run the **Release** workflow manually (Actions → Release → Run workflow)
+
 ## Usage
 
 Run the binary — it launches an interactive setup wizard:

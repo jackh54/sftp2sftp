@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "*"
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to attach binaries to (e.g. 1.0.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & attach binaries
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve tag
+        id: meta
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ steps.meta.outputs.tag }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run tests
+        run: go test ./... -count=1
+
+      - name: Build release binaries
+        run: |
+          mkdir -p dist
+          platforms="linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64"
+          for platform in $platforms; do
+            goos="${platform%/*}"
+            goarch="${platform#*/}"
+            ext=""
+            if [ "$goos" = "windows" ]; then ext=".exe"; fi
+            echo "Building $goos/$goarch..."
+            GOOS="$goos" GOARCH="$goarch" go build -trimpath -ldflags="-s -w" \
+              -o "dist/sftp2sftp-${goos}-${goarch}${ext}" \
+              ./cmd/sftp2sftp/
+          done
+          ls -la dist/
+
+      - name: Upload to GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          files: dist/*
+          overwrite_files: true
+          generate_release_notes: false
