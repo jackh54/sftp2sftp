@@ -19,6 +19,10 @@ import (
 const (
 	keepAliveInterval = 30 * time.Second
 	dialTimeout       = 30 * time.Second
+
+	// Tuned for throughput on OpenSSH / Pterodactyl hosts over WAN links.
+	sftpMaxPacket         = 256 * 1024
+	sftpConcurrentPerFile = 128
 )
 
 // Client wraps an SSH+SFTP session with reconnect support.
@@ -79,7 +83,11 @@ func (c *Client) connect(ctx context.Context) error {
 	}
 
 	client := ssh.NewClient(sshConn, chans, reqs)
-	sftpClient, err := sftp.NewClient(client)
+	sftpClient, err := sftp.NewClient(client,
+		sftp.MaxPacketUnchecked(sftpMaxPacket),
+		sftp.UseConcurrentWrites(true),
+		sftp.MaxConcurrentRequestsPerFile(sftpConcurrentPerFile),
+	)
 	if err != nil {
 		_ = client.Close()
 		return fmt.Errorf("%s: open sftp: %w", c.name, err)
@@ -155,14 +163,28 @@ func (c *Client) Close() {
 	}
 }
 
-// Manager holds source and destination SFTP clients.
+// Manager holds pooled source and destination SFTP sessions.
 type Manager struct {
-	Source *Client
-	Dest   *Client
+	Source *Pool
+	Dest   *Pool
 }
 
-func NewManager(source, dest *Client) *Manager {
+func NewManager(source, dest *Pool) *Manager {
 	return &Manager{Source: source, Dest: dest}
+}
+
+// NewPooledManager opens one SSH/SFTP session per worker on each side.
+func NewPooledManager(ctx context.Context, source, dest *Client, workers int) (*Manager, error) {
+	sourcePool, err := GrowPool(ctx, source, workers)
+	if err != nil {
+		return nil, err
+	}
+	destPool, err := GrowPool(ctx, dest, workers)
+	if err != nil {
+		sourcePool.Close()
+		return nil, err
+	}
+	return NewManager(sourcePool, destPool), nil
 }
 
 func (m *Manager) Close() {
@@ -174,15 +196,14 @@ func (m *Manager) Close() {
 	}
 }
 
-func (m *Manager) Reconnect(ctx context.Context, which string) error {
-	switch which {
-	case "source":
-		return m.Source.Reconnect(ctx)
-	case "dest":
-		return m.Dest.Reconnect(ctx)
-	default:
-		return fmt.Errorf("unknown client %q", which)
+func (m *Manager) ReconnectAll(ctx context.Context) error {
+	if err := m.Source.ReconnectAll(ctx); err != nil {
+		return fmt.Errorf("reconnect source: %w", err)
 	}
+	if err := m.Dest.ReconnectAll(ctx); err != nil {
+		return fmt.Errorf("reconnect dest: %w", err)
+	}
+	return nil
 }
 
 func (m *Manager) EnsureReconnect(ctx context.Context, fn func() error) error {
@@ -191,11 +212,8 @@ func (m *Manager) EnsureReconnect(ctx context.Context, fn func() error) error {
 		return err
 	}
 
-	if reconnErr := m.Source.Reconnect(ctx); reconnErr != nil {
-		return fmt.Errorf("reconnect source: %w (original: %v)", reconnErr, err)
-	}
-	if reconnErr := m.Dest.Reconnect(ctx); reconnErr != nil {
-		return fmt.Errorf("reconnect dest: %w (original: %v)", reconnErr, err)
+	if reconnErr := m.ReconnectAll(ctx); reconnErr != nil {
+		return fmt.Errorf("%v (original: %v)", reconnErr, err)
 	}
 	return fn()
 }

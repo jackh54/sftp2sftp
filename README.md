@@ -115,11 +115,19 @@ When enabled in the wizard, these are excluded:
 
 1. Opens dual SSH/SFTP sessions (source + dest) with keepalive packets
 2. Browse the source tree interactively and select files/folders to copy (live SFTP listing — no full-tree scan upfront)
-3. Expands selected folders, then transfers files through an in-memory pipe (`io.CopyBuffer`) — never touches local disk
-4. Creates destination parent directories as needed (`mkdir -p` equivalent)
-5. Runs a worker pool for parallel small-file throughput
-6. Retries each file up to 3× with exponential backoff
-7. Reconnects both sessions on connection drops and resumes from state
+3. Expands selected folders, then streams each file source → destination in memory (pipelined for large files)
+4. Opens **one SSH session per worker** on each host so multiple files transfer in parallel
+5. Creates destination parent directories as needed (`mkdir -p` equivalent)
+6. Runs a worker pool with 256 KB SFTP packets and concurrent reads/writes
+7. Retries each file up to 3× with exponential backoff
+8. Reconnects all sessions on connection drops and resumes from state
+
+### Performance tips
+
+- **Workers**: Use **16** or **32** parallel workers for large server moves (each worker is a separate SSH connection per host).
+- **Verify**: Leave verification on **None** during the first pass; use size/MD5 only if you need to double-check.
+- **Limits**: Pterodactyl and some hosts cap per-connection SFTP bandwidth — more workers is the main lever this tool has.
+- Data always flows **source → your machine → destination**; WAN latency on either side affects speed.
 
 ### Resume
 

@@ -25,7 +25,6 @@ type Config struct {
 	Concurrency  int
 	Resume       bool
 	NoMCDefaults bool
-	ChunkSize    int
 	Verify       verify.Mode
 	StatePath    string
 }
@@ -54,14 +53,13 @@ func Run(ctx context.Context, cfg Config) error {
 	if err != nil {
 		return err
 	}
-	defer sourceClient.Close()
 
 	fmt.Fprintf(os.Stderr, "connecting to dest %s ...\n", dstEP.Addr())
 	destClient, err := sftpclient.Connect(ctx, "dest", dstEP, destAuth)
 	if err != nil {
+		sourceClient.Close()
 		return err
 	}
-	defer destClient.Close()
 
 	patterns := append([]string{}, cfg.Exclude...)
 	if !cfg.NoMCDefaults {
@@ -114,10 +112,17 @@ func Run(ctx context.Context, cfg Config) error {
 			before-len(m.Files), len(m.Files), progress.HumanBytes(m.TotalBytes))
 	}
 
-	manager := sftpclient.NewManager(sourceClient, destClient)
+	manager, err := sftpclient.NewPooledManager(ctx, sourceClient, destClient, cfg.Concurrency)
+	if err != nil {
+		return err
+	}
+	defer manager.Close()
+	if cfg.Concurrency > 1 {
+		fmt.Fprintf(os.Stderr, "opened %d parallel SSH sessions per host\n", cfg.Concurrency)
+	}
+
 	runner := transfer.New(manager, m, st, transfer.Options{
 		Concurrency: cfg.Concurrency,
-		ChunkSize:   cfg.ChunkSize,
 		Resume:      cfg.Resume,
 		StatePath:   cfg.StatePath,
 		Verify:      cfg.Verify,
