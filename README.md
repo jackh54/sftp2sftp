@@ -34,13 +34,29 @@ sftp2sftp
 
 You'll be prompted for:
 
-1. **Connection** — source and destination (`user@host:port/path`)
+1. **Connection** — source and destination as Pterodactyl-style SFTP URLs
 2. **Authentication** — optional SSH key paths (blank = auto-detect `~/.ssh/id_*`, then password prompt)
 3. **Transfer** — parallelism, resume, verification mode
 4. **Excludes** — Minecraft defaults and custom patterns
 5. **Confirm** — review summary, then transfer starts
 
 No flags required.
+
+### Endpoint format
+
+Paste the **Launch SFTP** URL from a Pterodactyl panel (Settings → SFTP Details):
+
+```text
+sftp://username.serverid@hostname:2022
+```
+
+Optional path selects a subdirectory (defaults to `/`, the SFTP jail root):
+
+```text
+sftp://username.serverid@hostname:2022/plugins
+```
+
+Legacy `user@host:port/path` strings are still accepted.
 
 ### Authentication
 

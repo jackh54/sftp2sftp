@@ -2,13 +2,15 @@ package endpoint
 
 import (
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 )
 
 const DefaultPort = 22
 
-// Endpoint describes a remote SFTP location: user@host:port/path
+// Endpoint describes a remote SFTP location.
+// Canonical form (Pterodactyl-compatible): sftp://user@host:port[/path]
 type Endpoint struct {
 	User string
 	Host string
@@ -21,10 +23,14 @@ func (e Endpoint) String() string {
 	if strings.Contains(host, ":") && !strings.HasPrefix(host, "[") {
 		host = "[" + host + "]"
 	}
-	if e.Port == DefaultPort {
-		return fmt.Sprintf("%s@%s%s", e.User, host, e.Path)
+	path := e.Path
+	if path == "/" {
+		path = ""
 	}
-	return fmt.Sprintf("%s@%s:%d%s", e.User, host, e.Port, e.Path)
+	if e.Port == DefaultPort {
+		return fmt.Sprintf("sftp://%s@%s%s", e.User, host, path)
+	}
+	return fmt.Sprintf("sftp://%s@%s:%d%s", e.User, host, e.Port, path)
 }
 
 func (e Endpoint) Addr() string {
@@ -35,35 +41,89 @@ func (e Endpoint) Addr() string {
 	return fmt.Sprintf("%s:%d", host, e.Port)
 }
 
-// Parse parses user@host:port/path. Port defaults to 22.
+// Parse parses an SFTP endpoint.
+// Preferred form is the Pterodactyl Launch SFTP URL: sftp://user@host:port[/path].
+// Legacy form user@host:port/path is still accepted. Port defaults to 22.
+// Path defaults to "/" when omitted (Pterodactyl jail root).
 func Parse(raw string) (Endpoint, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return Endpoint{}, fmt.Errorf("endpoint is empty")
 	}
 
-	at := strings.LastIndex(raw, "@")
-	if at <= 0 || at == len(raw)-1 {
-		return Endpoint{}, fmt.Errorf("invalid endpoint %q: expected user@host/path", raw)
+	if i := strings.Index(raw, "://"); i >= 0 {
+		scheme := raw[:i]
+		if !strings.EqualFold(scheme, "sftp") {
+			return Endpoint{}, fmt.Errorf("invalid endpoint %q: unsupported scheme %q (expected sftp)", raw, scheme)
+		}
+		return parseURL(raw)
+	}
+	return parseLegacy(raw)
+}
+
+func parseURL(raw string) (Endpoint, error) {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return Endpoint{}, fmt.Errorf("invalid endpoint %q: %w", raw, err)
+	}
+	if u.RawQuery != "" || u.Fragment != "" {
+		return Endpoint{}, fmt.Errorf("invalid endpoint %q: query and fragment are not allowed", raw)
+	}
+	if u.User == nil || u.User.Username() == "" {
+		return Endpoint{}, fmt.Errorf("invalid endpoint %q: expected sftp://user@host:port", raw)
+	}
+	if _, hasPassword := u.User.Password(); hasPassword {
+		return Endpoint{}, fmt.Errorf("invalid endpoint %q: password in URL is not supported; use the auth prompt or SSH key", raw)
+	}
+	if u.Hostname() == "" {
+		return Endpoint{}, fmt.Errorf("invalid endpoint %q: host is empty", raw)
 	}
 
-	user := raw[:at]
-	rest := raw[at+1:]
-
-	slash := strings.Index(rest, "/")
-	if slash < 0 {
-		return Endpoint{}, fmt.Errorf("invalid endpoint %q: remote path is required", raw)
+	port := DefaultPort
+	if u.Port() != "" {
+		port, err = strconv.Atoi(u.Port())
+		if err != nil || port < 1 || port > 65535 {
+			return Endpoint{}, fmt.Errorf("invalid endpoint %q: invalid port %q", raw, u.Port())
+		}
 	}
 
-	path := rest[slash:]
-	if path == "/" {
-		return Endpoint{}, fmt.Errorf("invalid endpoint %q: remote path must not be root only", raw)
+	path := u.Path
+	if path == "" {
+		path = "/"
 	}
 	if !strings.HasPrefix(path, "/") {
 		return Endpoint{}, fmt.Errorf("invalid endpoint %q: remote path must be absolute", raw)
 	}
 
-	host, port, err := splitHostPort(rest[:slash])
+	return Endpoint{
+		User: u.User.Username(),
+		Host: u.Hostname(),
+		Port: port,
+		Path: cleanRemotePath(path),
+	}, nil
+}
+
+// parseLegacy accepts user@host:port/path (path optional; defaults to "/").
+func parseLegacy(raw string) (Endpoint, error) {
+	at := strings.LastIndex(raw, "@")
+	if at <= 0 || at == len(raw)-1 {
+		return Endpoint{}, fmt.Errorf("invalid endpoint %q: expected sftp://user@host:port", raw)
+	}
+
+	user := raw[:at]
+	rest := raw[at+1:]
+
+	hostport := rest
+	path := "/"
+	if slash := strings.Index(rest, "/"); slash >= 0 {
+		hostport = rest[:slash]
+		path = rest[slash:]
+		if !strings.HasPrefix(path, "/") {
+			return Endpoint{}, fmt.Errorf("invalid endpoint %q: remote path must be absolute", raw)
+		}
+	}
+
+	host, port, err := splitHostPort(hostport)
 	if err != nil {
 		return Endpoint{}, fmt.Errorf("invalid endpoint %q: %w", raw, err)
 	}

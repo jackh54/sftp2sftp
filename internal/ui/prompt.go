@@ -53,15 +53,15 @@ func Prompt() (cli.Config, error) {
 		huh.NewGroup(
 			huh.NewNote().
 				Title("Connection").
-				Description("Where to copy from and where to copy to.\nFormat: user@host:port/path"),
+				Description("Where to copy from and where to copy to.\nFormat: sftp://user@host:port[/path] (Pterodactyl Launch SFTP URL)"),
 			huh.NewInput().
 				Title("Source").
-				Placeholder("user@host1:22/home/mc/server").
+				Placeholder("sftp://user.abcd1234@node1.example.com:2022").
 				Value(&source).
 				Validate(validateEndpoint),
 			huh.NewInput().
 				Title("Destination").
-				Placeholder("user@host2:22/home/mc/server").
+				Placeholder("sftp://user.efgh5678@node2.example.com:2022").
 				Value(&dest).
 				Validate(validateEndpoint),
 		),
