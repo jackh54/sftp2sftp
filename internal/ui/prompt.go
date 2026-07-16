@@ -108,12 +108,13 @@ func Prompt() (cli.Config, error) {
 				Title("Transfer").
 				Description("Files stream source → destination in memory. Nothing is written to local disk."),
 			huh.NewSelect[string]().
-				Title("Parallel transfers").
+				Title("Parallel workers").
+				Description("Used for manifest scan and file transfer. Higher = faster on large servers, but more load on SFTP.").
 				Options(
 					huh.NewOption("1 (slow, gentle on SSH)", "1"),
 					huh.NewOption("2", "2"),
 					huh.NewOption("4 (recommended)", "4"),
-					huh.NewOption("8", "8"),
+					huh.NewOption("8 (large servers)", "8"),
 					huh.NewOption("16 (aggressive)", "16"),
 				).
 				Value(&concurrency),

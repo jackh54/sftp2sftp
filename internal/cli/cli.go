@@ -69,7 +69,7 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	matcher := exclude.New(patterns...)
 
-	m, err := walker.Build(ctx, sourceClient, srcEP.Path, matcher)
+	m, err := walker.Build(ctx, sourceClient, srcEP.Path, matcher, cfg.Concurrency)
 	if err != nil {
 		return err
 	}

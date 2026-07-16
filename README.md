@@ -114,7 +114,7 @@ When enabled in the wizard, these are excluded:
 ## How it works
 
 1. Opens dual SSH/SFTP sessions (source + dest) with keepalive packets
-2. Walks the source tree and builds a manifest (path, size, mode) for real progress %
+2. Walks the source tree in parallel (same worker count as transfers) and builds a manifest (path, size, mode) for real progress %
 3. Transfers files through an in-memory pipe (`io.CopyBuffer`) — never touches local disk
 4. Creates destination parent directories as needed (`mkdir -p` equivalent)
 5. Runs a worker pool for parallel small-file throughput
