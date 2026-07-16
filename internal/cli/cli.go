@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/jackh54/sftp2sftp/internal/auth"
 	"github.com/jackh54/sftp2sftp/internal/endpoint"
@@ -117,40 +116,19 @@ func Run(ctx context.Context, cfg Config) error {
 }
 
 func resolveAuth(label, keyPath string) (auth.Method, error) {
-	method := auth.Method{KeyPath: keyPath}
-	if method.KeyPath == "" {
-		for _, candidate := range defaultKeyCandidates() {
-			if _, err := os.Stat(candidate); err == nil {
-				method.KeyPath = candidate
-				break
-			}
+	if keyPath != "" {
+		method := auth.Method{KeyPath: keyPath}
+		if _, err := method.Signers(); err != nil {
+			return auth.Method{}, fmt.Errorf("%s SSH key: %w", label, err)
 		}
-	}
-
-	if method.KeyPath != "" {
-		if _, err := method.Signers(); err == nil {
-			return method, nil
-		}
+		return method, nil
 	}
 
 	pw, err := auth.PromptPassword(fmt.Sprintf("%s password", label))
 	if err != nil {
 		return auth.Method{}, err
 	}
-	method.Password = pw
-	return method, nil
-}
-
-func defaultKeyCandidates() []string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil
-	}
-	sshDir := strings.TrimRight(home, string(os.PathSeparator)) + string(os.PathSeparator) + ".ssh"
-	return []string{
-		sshDir + string(os.PathSeparator) + "id_ed25519",
-		sshDir + string(os.PathSeparator) + "id_rsa",
-	}
+	return auth.Method{Password: pw}, nil
 }
 
 func humanBytes(n int64) string {

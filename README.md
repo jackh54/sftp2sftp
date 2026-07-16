@@ -35,7 +35,7 @@ sftp2sftp
 You'll be prompted for:
 
 1. **Connection** — source and destination as Pterodactyl-style SFTP URLs
-2. **Authentication** — optional SSH key paths (blank = auto-detect `~/.ssh/id_*`, then password prompt)
+2. **Authentication** — password by default; SSH private keys are an optional choice
 3. **Transfer** — parallelism, resume, verification mode
 4. **Excludes** — Minecraft defaults and custom patterns
 5. **Confirm** — review summary, then transfer starts
@@ -60,9 +60,9 @@ Legacy `user@host:port/path` strings are still accepted.
 
 ### Authentication
 
-- Optional SSH key path per host
-- If blank, tries `~/.ssh/id_ed25519` then `~/.ssh/id_rsa`
-- Otherwise prompts for password (never on argv)
+- **Password** is the default (for Pterodactyl, use your panel password)
+- **SSH private key** is available as an explicit option; you provide the key path per host
+- Passwords are never passed on argv
 - Encrypted keys prompt for passphrase
 
 ### Minecraft defaults

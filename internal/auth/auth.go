@@ -3,7 +3,6 @@ package auth
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/term"
@@ -60,12 +59,4 @@ func PromptPassword(label string) (string, error) {
 		return "", fmt.Errorf("read password: %w", err)
 	}
 	return pw, nil
-}
-
-func DefaultKeyPath() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
-	return filepath.Join(home, ".ssh", "id_rsa")
 }

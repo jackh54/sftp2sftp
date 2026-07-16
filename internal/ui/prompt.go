@@ -40,6 +40,7 @@ func Prompt() (cli.Config, error) {
 	var (
 		source       string
 		dest         string
+		authMode     string = "password"
 		sourceKey    string
 		destKey      string
 		excludeRaw   string
@@ -68,16 +69,40 @@ func Prompt() (cli.Config, error) {
 		huh.NewGroup(
 			huh.NewNote().
 				Title("Authentication").
-				Description("Leave blank to try ~/.ssh/id_ed25519 and id_rsa, then prompt for password."),
+				Description("Password is the default (panel password for Pterodactyl). SSH keys are optional."),
+			huh.NewSelect[string]().
+				Title("Auth method").
+				Options(
+					huh.NewOption("Password (default)", "password"),
+					huh.NewOption("SSH private key", "ssh"),
+				).
+				Value(&authMode),
+		),
+		huh.NewGroup(
+			huh.NewNote().
+				Title("SSH keys").
+				Description("Provide a private key path for each endpoint."),
 			huh.NewInput().
 				Title("Source SSH key").
-				Placeholder("optional path to private key").
-				Value(&sourceKey),
+				Placeholder("path to private key").
+				Value(&sourceKey).
+				Validate(func(s string) error {
+					if strings.TrimSpace(s) == "" {
+						return fmt.Errorf("required when using SSH keys")
+					}
+					return nil
+				}),
 			huh.NewInput().
 				Title("Destination SSH key").
-				Placeholder("optional path to private key").
-				Value(&destKey),
-		),
+				Placeholder("path to private key").
+				Value(&destKey).
+				Validate(func(s string) error {
+					if strings.TrimSpace(s) == "" {
+						return fmt.Errorf("required when using SSH keys")
+					}
+					return nil
+				}),
+		).WithHideFunc(func() bool { return authMode != "ssh" }),
 		huh.NewGroup(
 			huh.NewNote().
 				Title("Transfer").
@@ -122,7 +147,7 @@ func Prompt() (cli.Config, error) {
 			huh.NewNote().
 				Title("Ready").
 				DescriptionFunc(func() string {
-					return summarize(source, dest, concurrency, resume, verifyChoice, useMCDefault, excludeRaw)
+					return summarize(source, dest, authMode, concurrency, resume, verifyChoice, useMCDefault, excludeRaw)
 				}, &source),
 		),
 	).
@@ -141,13 +166,15 @@ func Prompt() (cli.Config, error) {
 	cfg := cli.Config{
 		Source:       strings.TrimSpace(source),
 		Dest:         strings.TrimSpace(dest),
-		SourceKey:    strings.TrimSpace(sourceKey),
-		DestKey:      strings.TrimSpace(destKey),
 		Concurrency:  parallel,
 		Resume:       resume,
 		NoMCDefaults: !useMCDefault,
 		ChunkSize:    64 * 1024,
 		StatePath:    state.DefaultFile,
+	}
+	if authMode == "ssh" {
+		cfg.SourceKey = strings.TrimSpace(sourceKey)
+		cfg.DestKey = strings.TrimSpace(destKey)
 	}
 
 	if excludeRaw != "" {
@@ -187,9 +214,14 @@ func validateEndpoint(s string) error {
 	return nil
 }
 
-func summarize(source, dest, concurrency string, resume bool, verify string, mcDefaults bool, excludes string) string {
+func summarize(source, dest, authMode, concurrency string, resume bool, verify string, mcDefaults bool, excludes string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "  %s\n    → %s\n\n", source, dest)
+	if authMode == "ssh" {
+		b.WriteString("  auth: SSH key\n")
+	} else {
+		b.WriteString("  auth: password\n")
+	}
 	fmt.Fprintf(&b, "  parallel: %s\n", concurrency)
 	if resume {
 		b.WriteString("  resume: yes\n")
